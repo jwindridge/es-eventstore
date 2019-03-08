@@ -9,7 +9,7 @@ test.beforeEach((t: any) => {
 test('append', (t: any) => {
   const streamId = 'dummy';
 
-  t.context.driver.append(streamId, { foo: 'bar' }, 0);
+  t.context.driver.append(streamId, [{ foo: 'bar' }], 0);
 
-  t.deepEqual(t.context.driver.data.streamsById[streamId], [{ foo: 'bar' }]);
+  t.deepEqual(t.context.driver.data.streamsById[streamId], [[{ foo: 'bar' }]]);
 });

@@ -1,6 +1,6 @@
 import { IAppendOnlyStore, IStreamData, IVersionedData } from '../interfaces';
 
-import { ConcurrencyError } from '../errors';
+import { ConcurrencyError } from '../../errors';
 
 interface IDirectDataAccess {
   data: {
@@ -15,18 +15,18 @@ export function createInMemoryDriver(): IAppendOnlyStore & IDirectDataAccess {
 
   const append = (
     streamId: string,
-    data: any[],
+    data: object[],
     expectedVersion: number
   ): Promise<void> => {
-    const existingEvents = streamsById[streamId] || [];
+    const existingData = streamsById[streamId] || [];
 
-    const storedVersion = existingEvents.length;
+    const storedVersion = existingData.length;
 
     if (expectedVersion !== storedVersion) {
       throw new ConcurrencyError(streamId, expectedVersion, storedVersion);
     }
 
-    streamsById[streamId] = [...existingEvents, data];
+    streamsById[streamId] = [...existingData, data];
     allStreams.push({ streamId, data });
 
     return new Promise(r => r());
