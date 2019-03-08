@@ -6,7 +6,7 @@ export interface IEvent {
 }
 
 export interface IStreamIdentifier {
-  streamId:() => string | string;
+  streamId: () => string | string;
 }
 
 export interface IStreamData {
@@ -25,15 +25,30 @@ export interface IEventStream {
 }
 
 export interface IAppendOnlyStore {
-    append(streamId: string, data: object, expectedVersion: number): Promise<void>;
+  append(streamId: string, data: any, expectedVersion: number): Promise<void>;
 
-    getEvents(streamId: string, afterVersion: number, maxCount: number): Promise<IVersionedData[]>;
+  readRecords(
+    streamId: string,
+    afterVersion?: number,
+    maxCount?: number
+  ): Promise<IVersionedData[]>;
 
-    getAllEvents(afterVersion: number, maxCount: number): Promise<IStreamData[]>;
+  readAllRecords(
+    afterVersion: number,
+    maxCount: number
+  ): Promise<IStreamData[]>;
 }
 
 export interface IEventStore {
-  loadEvents(id: IStreamIdentifier, skipEvents?: number, maxCount?: number): Promise<IEventStream>;
+  loadEvents(
+    id: IStreamIdentifier,
+    skipEvents?: number,
+    maxCount?: number
+  ): Promise<IEventStream>;
 
-  appendToStream(id: IStreamIdentifier, expectedVersion: number, events: IEvent[]): Promise<void>;
+  appendToStream(
+    id: IStreamIdentifier,
+    expectedVersion: number,
+    events: IEvent[]
+  ): Promise<void>;
 }
