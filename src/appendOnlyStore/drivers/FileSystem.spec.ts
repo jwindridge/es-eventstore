@@ -99,8 +99,8 @@ test('read records', async (t: any) => {
   t.deepEqual(
     stream1Records,
     stream1Data.map((data: object[], i: number) => ({
-      streamId: stream1,
       data,
+      streamId: stream1,
       version: i + 1
     }))
   );
