@@ -9,30 +9,25 @@ import { IAppendOnlyStore } from '../interfaces';
 import { createFileSystemDriver } from './FileSystem';
 
 test.beforeEach((t: any) => {
-
-  const name = t.title.replace(/^[: ]/, '-')
+  const name = t.title.replace(/[|&;$%@"<>()+, \:]/g, '-');
 
   const testFileName = `EventLog-${name}-${uuid.v4().slice(0, 8)}.log`;
-  const TEST_FILE_PATH = path.resolve(
-    process.cwd(),
-    'test/data',
-    testFileName
-  );
+  const TEST_FILE_PATH = path.resolve(process.cwd(), 'test/data', testFileName);
   t.context.TEST_FILE_PATH = TEST_FILE_PATH;
 
   t.context.driver = createFileSystemDriver({ filepath: TEST_FILE_PATH });
-  t.context.getFileContents = async () => fs.readTextFile(TEST_FILE_PATH, 'utf8');
+  t.context.getFileContents = async () =>
+    fs.readTextFile(TEST_FILE_PATH, 'utf8');
 });
 
 test.afterEach.always(async (t: any) => {
   const filePath = t.context.TEST_FILE_PATH;
   await new Promise(resolve => {
     setTimeout(() => {
-      // fs.unlink(filePath)
-      t.log(`unlinking path: ${filePath}`)
-      resolve()
+      fs.unlink(filePath);
+      resolve();
     }, 50);
-  })
+  });
 });
 
 test('append: ok', async (t: any) => {
@@ -69,27 +64,44 @@ test('append: concurrency error', async (t: any) => {
   });
 });
 
-test('readRecords', async (t: any) => {
+test('read records', async (t: any) => {
   const stream1 = uuid.v4();
-  
-  const driver: IAppendOnlyStore = t.context.driver;
-  
-  const stream1Payloads: object[][] = [
-    [{ added: 1 }, { added: 2 }, { added: 3 }]
-  ];
-  
-  // const stream2 = uuid.v4();
-  // const stream2Payloads: object[][] = [
-  //   [{ string: 'hello' }, { message: 'world' }]
-  // ];
+  const stream2 = uuid.v4();
 
-  stream1Payloads.forEach(async (data: object[], version: number ) => {
-    await driver.append(stream1, data, version);
-  });
+  const driver: IAppendOnlyStore = t.context.driver;
+
+  const stream1Data = [
+    [{ added: 1 }, { added: 2 }, { added: 3 }],
+    [{ added: 6 }, { added: 7 }, { added: 8 }]
+  ];
+
+  const stream2Data = [[{ string: 'hello' }], [{ message: 'world' }]];
+
+  await driver.append(stream1, stream1Data[0], 0);
+  await driver.append(stream2, stream2Data[0], 0);
+
+  await driver.append(stream1, stream1Data[1], 1);
+  await driver.append(stream2, stream2Data[1], 1);
 
   const allRecords = await driver.readAllRecords();
 
-  t.log(allRecords);
+  t.is(allRecords.length, 4);
 
-  t.is(allRecords.length, 1);
+  t.deepEqual(allRecords, [
+    { streamId: stream1, data: stream1Data[0], version: 1 },
+    { streamId: stream2, data: stream2Data[0], version: 1 },
+    { streamId: stream1, data: stream1Data[1], version: 2 },
+    { streamId: stream2, data: stream2Data[1], version: 2 }
+  ]);
+
+  const stream1Records = await driver.readRecords(stream1);
+
+  t.deepEqual(
+    stream1Records,
+    stream1Data.map((data: object[], i: number) => ({
+      streamId: stream1,
+      data,
+      version: i + 1
+    }))
+  );
 });

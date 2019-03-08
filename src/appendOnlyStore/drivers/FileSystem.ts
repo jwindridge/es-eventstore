@@ -24,7 +24,7 @@ async function ensureExists(filepath: string): Promise<boolean> {
 
   let dirExists = await fs.exists(dir);
 
-  if (!(dirExists)) {
+  if (!dirExists) {
     try {
       await fs.createDirectory(dir);
     } catch {
