@@ -8,6 +8,9 @@ import { ConcurrencyError } from '../../errors';
 import { IAppendOnlyStore } from '../interfaces';
 import { createFileSystemDriver } from './FileSystem';
 
+const stream1Data = [{ foo: 'foo' }, { bar: 'bar' }, { baz: 'baz' }];
+const stream2Data = [{ msg: 'Hello' }, { ms: 'World' }];
+
 test.beforeEach((t: any) => {
   const name = t.title.replace(/[|&;$%@"<>()+, \:]/g, '-');
 
@@ -36,15 +39,15 @@ test('append: ok', async (t: any) => {
 
   const driver: IAppendOnlyStore = t.context.driver;
 
-  await driver.append(stream1, [{ foo: 'foo', nested: { bar: 1234 } }], 0);
-  await driver.append(stream2, [{ baz: 'other' }, { data: 789 }], 0);
-  await driver.append(stream1, [{ foo: 'bar' }], 1);
+  await driver.append(stream1, stream1Data[0], 0);
+  await driver.append(stream2, stream2Data[0], 0);
+  await driver.append(stream1, stream1Data[1], 1);
 
   const fileContents = await t.context.getFileContents();
 
-  const expectedData = `{"streamId":"${stream1}","data":[{"foo":"foo","nested":{"bar":1234}}],"version":1}
-{"streamId":"${stream2}","data":[{"baz":"other"},{"data":789}],"version":1}
-{"streamId":"${stream1}","data":[{"foo":"bar"}],"version":2}
+  const expectedData = `{"streamId":"${stream1}","data":{"foo":"foo"},"version":1}
+{"streamId":"${stream2}","data":{"msg":"Hello"},"version":1}
+{"streamId":"${stream1}","data":{"bar":"bar"},"version":2}
 `;
 
   t.is(fileContents, expectedData);
@@ -55,12 +58,12 @@ test('append: concurrency error', async (t: any) => {
 
   const driver: IAppendOnlyStore = t.context.driver;
 
-  await driver.append(streamId, [{ foo: 'foo' }], 0);
-  const shouldError = async () => driver.append(streamId, [{ foo: 'bar' }], 0);
+  await driver.append(streamId, stream1Data[0], 0);
+  const shouldError = async () => driver.append(streamId, stream1Data[1], 0);
 
   await t.throwsAsync(shouldError, {
     instanceOf: ConcurrencyError,
-    message: `Expected stream ${streamId} to be 0, got 1`
+    message: `Expected stream "${streamId}" version to be 0, got 1`
   });
 });
 
@@ -69,13 +72,6 @@ test('read records', async (t: any) => {
   const stream2 = uuid.v4();
 
   const driver: IAppendOnlyStore = t.context.driver;
-
-  const stream1Data = [
-    [{ added: 1 }, { added: 2 }, { added: 3 }],
-    [{ added: 6 }, { added: 7 }, { added: 8 }]
-  ];
-
-  const stream2Data = [[{ string: 'hello' }], [{ message: 'world' }]];
 
   await driver.append(stream1, stream1Data[0], 0);
   await driver.append(stream2, stream2Data[0], 0);
@@ -98,7 +94,7 @@ test('read records', async (t: any) => {
 
   t.deepEqual(
     stream1Records,
-    stream1Data.map((data: object[], i: number) => ({
+    stream1Data.slice(0, 2).map((data: object, i: number) => ({
       data,
       streamId: stream1,
       version: i + 1

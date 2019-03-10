@@ -8,7 +8,7 @@ export class ConcurrencyError extends EventStoreError {
     expectedVersion: number,
     actualVersion: number
   ) {
-    const msg = `Expected stream ${streamId} to be ${expectedVersion}, got ${actualVersion}`;
+    const msg = `Expected stream "${streamId}" version to be ${expectedVersion}, got ${actualVersion}`;
     super(msg);
   }
 }

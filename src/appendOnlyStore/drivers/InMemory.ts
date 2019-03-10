@@ -15,7 +15,7 @@ export function createInMemoryDriver(): IAppendOnlyStore & IDirectDataAccess {
 
   const append = (
     streamId: string,
-    data: object[],
+    data: object,
     expectedVersion: number
   ): Promise<void> => {
     const existingData = streamsById[streamId] || [];
@@ -28,6 +28,26 @@ export function createInMemoryDriver(): IAppendOnlyStore & IDirectDataAccess {
 
     streamsById[streamId] = [...existingData, data];
     allStreams.push({ streamId, data });
+
+    return new Promise(r => r());
+  };
+
+  const appendAll = (
+    streamId: string,
+    data: object[],
+    expectedVersion: number
+  ): Promise<void> => {
+    const existingData = streamsById[streamId] || [];
+
+    const storedVersion = existingData.length;
+
+    if (expectedVersion !== storedVersion) {
+      throw new ConcurrencyError(streamId, expectedVersion, storedVersion);
+    }
+
+    streamsById[streamId] = [...existingData, ...data];
+
+    data.map(d => ({ streamId, data: d })).forEach(d => allStreams.push(d));
 
     return new Promise(r => r());
   };
@@ -45,7 +65,7 @@ export function createInMemoryDriver(): IAppendOnlyStore & IDirectDataAccess {
     );
 
     return new Promise(r =>
-      r(selectedData.map((d, i) => ({ version: i, data: d })))
+      r(selectedData.map((d, i) => ({ version: i + 1, data: d })))
     );
   };
 
@@ -62,6 +82,7 @@ export function createInMemoryDriver(): IAppendOnlyStore & IDirectDataAccess {
 
   return {
     append,
+    appendAll,
     readAllRecords,
     readRecords,
     data: {

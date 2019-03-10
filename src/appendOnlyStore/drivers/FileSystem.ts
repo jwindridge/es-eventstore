@@ -16,7 +16,7 @@ interface IRecord {
 
 const parseRecord: (line: string) => IRecord = line => JSON.parse(line);
 
-const createRecord = (streamId: string, data: object[], version: number) =>
+const createRecord = (streamId: string, data: object, version: number) =>
   JSON.stringify({ streamId, data, version }) + '\n';
 
 async function ensureExists(filepath: string): Promise<boolean> {
@@ -62,7 +62,7 @@ export function createFileSystemDriver({
 
   const append = async (
     streamId: string,
-    data: object[],
+    data: object,
     expectedVersion: number
   ): Promise<void> => {
     const storedVersion = await getVersion(streamId);
@@ -74,6 +74,25 @@ export function createFileSystemDriver({
     const record = createRecord(streamId, data, expectedVersion + 1);
     await ensureExists(filepath);
     return fs.appendFile(filepath, record, { encoding: 'utf8', flag: 'a+' });
+  };
+
+  const appendAll = async (
+    streamId: string,
+    data: object[],
+    expectedVersion: number
+  ): Promise<void> => {
+    const storedVersion = await getVersion(streamId);
+
+    if (expectedVersion !== storedVersion) {
+      throw new ConcurrencyError(streamId, expectedVersion, storedVersion);
+    }
+
+    await ensureExists(filepath);
+
+    for (const [idx, d] of data.entries()) {
+      const record = createRecord(streamId, d, expectedVersion + idx + 1);
+      await fs.appendFile(filepath, record, { encoding: 'utf8', flag: 'a+' });
+    }
   };
 
   const readRecords = async (
@@ -100,6 +119,7 @@ export function createFileSystemDriver({
 
   return {
     append,
+    appendAll,
     readAllRecords,
     readRecords
   };
